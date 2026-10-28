@@ -7,8 +7,10 @@
 # Between lib/ files, references to libvlc or libvlccore must be
 # @loader_path/<name>.dylib; from plug-ins, @rpath/<name>.dylib (unversioned);
 # others are rewritten accordingly and the file is re-signed
-# ad hoc so it stays loadable until install4j signs it. Prints a FIXED
-# line per change and exits non-zero if any file is not universal.
+# ad hoc so it stays loadable until install4j signs it. Any other reference
+# outside /usr/lib and /System must not be an absolute path. Prints a FIXED
+# line per change and exits non-zero if any file is not universal or has
+# an absolute reference.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
@@ -23,36 +25,40 @@ vlc_name() {
 
 bad=0
 while IFS= read -r f; do
-    file -b "$f" | grep -q 'Mach-O' || continue
+    kind=$(file -b "$f")
+    [[ "$kind" == *Mach-O* ]] || continue
 
-    archs=$(lipo -archs "$f")
-    case " $archs " in
-        *" arm64 "*) ;;
-        *) echo "NOT UNIVERSAL $f ($archs)"; bad=1; continue ;;
-    esac
-    case " $archs " in
-        *" x86_64 "*) ;;
-        *) echo "NOT UNIVERSAL $f ($archs)"; bad=1; continue ;;
-    esac
+    archs=" $(lipo -archs "$f") "
+    if [[ "$archs" != *" arm64 "* || "$archs" != *" x86_64 "* ]]; then
+        echo "NOT UNIVERSAL $f ($(echo $archs))"
+        bad=1
+        continue
+    fi
 
     changed=0
-    id=$(otool -D "$f" | tail -n +2 | head -1)
+    id=$(otool -D "$f" | sed -n 2p)
     case "$f" in
         "$dir/lib/"*)
             want="@rpath/$(basename "$f")"
             if [ -n "$id" ] && [ "$id" != "$want" ]; then
                 install_name_tool -id "$want" "$f" 2>/dev/null
                 echo "FIXED $f id $id -> $want"
+                id="$want"
                 changed=1
             fi
             ;;
     esac
 
-    deps=$(otool -L "$f" | grep -E '^[[:space:]]' | awk '{print $1}' | sort -u)
-    for dep in $deps; do
-        [ "$dep" = "$id" ] && continue
+    while IFS= read -r dep; do
+        [ -z "$dep" ] || [ "$dep" = "$id" ] && continue
         name=$(vlc_name "$dep")
-        [ -n "$name" ] || continue
+        if [ -z "$name" ]; then
+            case "$dep" in
+                @*|/usr/lib/*|/System/*) ;;
+                *) echo "ABSOLUTE PATH $f $dep"; bad=1 ;;
+            esac
+            continue
+        fi
         case "$f" in
             "$dir/lib/"*)
                 # The core libraries carry no rpath, and JNA loads libvlc by
@@ -72,7 +78,7 @@ while IFS= read -r f; do
         install_name_tool -change "$dep" "$want" "$f" 2>/dev/null
         echo "FIXED $f $dep -> $want"
         changed=1
-    done
+    done < <(otool -L "$f" | awk '/^[[:space:]]/ { print $1 }' | sort -u)
 
     if [ "$changed" = 1 ]; then
         codesign --force -s - "$f" 2>/dev/null

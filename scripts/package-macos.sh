@@ -5,8 +5,10 @@
 #
 # Produces <out-dir>/vlc-macos-<maven-version>.zip (layout
 # VLC.app/Contents/MacOS/{lib,plugins}) and <out-dir>/vlc-macos-<maven-version>.trim.txt.
-# Env: VLC_MAC_APP  use this VLC.app instead of downloading the disk image
-#      LISTS_DIR    folder holding macos-{keep,remove}.txt
+# The trim and verify report is also written to stderr.
+# Env: VLC_MAC_APP   use this VLC.app instead of downloading the disk image
+#      LISTS_DIR     folder holding macos-{keep,remove}.txt
+#      LICENSES_DIR  folder holding COPYING.txt and AUTHORS.txt
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
@@ -15,7 +17,10 @@ vlc_version="$2"
 out="$3"
 here="$(cd "$(dirname "$0")" && pwd)"
 lists="${LISTS_DIR:-$here/../lists}"
+licenses="${LICENSES_DIR:-$here/../licenses}"
 name="vlc-macos-$maven_version"
+mkdir -p "$out"
+rm -f "$out/$name.zip" "$out/$name.trim.txt"
 
 work=$(mktemp -d)
 mnt="$work/mnt"
@@ -23,8 +28,7 @@ trap 'hdiutil detach -quiet "$mnt" 2>/dev/null || true; rm -rf "$work"' EXIT
 
 app="${VLC_MAC_APP:-}"
 if [ -z "$app" ]; then
-    dmg=$("$here/fetch.sh" \
-        "https://get.videolan.org/vlc/$vlc_version/macosx/vlc-$vlc_version-universal.dmg" "${DOWNLOAD_DIR:-$work/dl}")
+    dmg=$(fetch_vlc "$vlc_version" "macosx/vlc-$vlc_version-universal.dmg" "${DOWNLOAD_DIR:-$work/dl}")
     mkdir -p "$mnt"
     hdiutil attach -nobrowse -readonly -mountpoint "$mnt" "$dmg" >/dev/null
     app="$mnt/VLC.app"
@@ -40,25 +44,24 @@ for lib in libvlc.dylib libvlccore.dylib; do
 done
 cp "$src/plugins/"*.dylib "$stage/plugins/"
 
-mkdir -p "$out"
-report="$out/$name.trim.txt"
+report="$work/$name.trim.txt"
 : > "$report"
 for f in "$stage/plugins/"*.dylib; do
     archs=" $(lipo -archs "$f") "
     if [[ "$archs" != *" arm64 "* || "$archs" != *" x86_64 "* ]]; then
         rm -f "$f"
-        echo "REMOVED $(basename "$f") (not universal)" >> "$report"
+        echo "REMOVED $(basename "$f") (not universal)" | tee -a "$report" >&2
     fi
 done
 "$here/trim-plugins.sh" --mode flat "$stage/plugins" \
-    "$lists/macos-keep.txt" "$lists/macos-remove.txt" >> "$report"
-"$here/verify-macos.sh" "$stage" >> "$report"
+    "$lists/macos-keep.txt" "$lists/macos-remove.txt" | tee -a "$report" >&2
+"$here/verify-macos.sh" "$stage" | tee -a "$report" >&2
 
-cp "$here/../licenses/COPYING.txt" "$here/../licenses/AUTHORS.txt" "$stage/"
+cp "$licenses/COPYING.txt" "$licenses/AUTHORS.txt" "$stage/"
 sed "s/@VLC_VERSION@/$vlc_version/g" "$here/../templates/README.txt" > "$stage/README.txt"
 
 out_abs="$(cd "$out" && pwd)"
-rm -f "$out_abs/$name.zip"
-(cd "$work/stage" && zip -qrX "$out_abs/$name.zip" VLC.app)
+(cd "$work/stage" && zip -qrX "$work/$name.zip" VLC.app)
+mv "$work/$name.zip" "$report" "$out_abs/"
 
 echo "$out_abs/$name.zip"

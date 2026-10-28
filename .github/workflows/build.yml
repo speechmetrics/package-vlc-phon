@@ -38,8 +38,11 @@ jobs:
         run: tests/run.sh
       - name: Build package
         run: scripts/package-macos.sh "${{ needs.version.outputs.maven }}" "${{ needs.version.outputs.vlc }}" out
-      - name: Show trim report
-        run: cat out/*.trim.txt
+      - name: Flag unclassified plug-ins
+        if: always()
+        run: |
+          grep -h '^UNCLASSIFIED' out/*.trim.txt 2>/dev/null \
+            | sed 's/^UNCLASSIFIED /::warning title=Unclassified VLC plug-in::Kept; add to a list: /' || true
       - uses: actions/upload-artifact@v4
         with:
           name: vlc-macos
@@ -52,8 +55,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build package
         run: scripts/package-windows.sh "${{ needs.version.outputs.maven }}" "${{ needs.version.outputs.vlc }}" out
-      - name: Show trim report
-        run: cat out/*.trim.txt
+      - name: Flag unclassified plug-ins
+        if: always()
+        run: |
+          grep -h '^UNCLASSIFIED' out/*.trim.txt 2>/dev/null \
+            | sed 's/^UNCLASSIFIED /::warning title=Unclassified VLC plug-in::Kept; add to a list: /' || true
       - uses: actions/upload-artifact@v4
         with:
           name: vlc-windows-x64
@@ -97,7 +103,8 @@ jobs:
         run: java -jar smoke/target/vlc-smoke.jar "vlc/${{ matrix.target.lib }}" smoke/clips smoke/allowed-errors.txt
 
   publish:
-    if: github.ref_type == 'tag'
+    # Tag pushes only: manual runs and pull requests never publish.
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [version, smoke]
     runs-on: ubuntu-latest
     permissions:
@@ -114,6 +121,8 @@ jobs:
           path: pkg
           merge-multiple: true
       - name: Publish to GitHub Packages
+        # A version that already exists is skipped and its published zip
+        # replaces the rebuilt one, so the Release matches Maven.
         run: |
           scripts/publish.sh vlc-macos "$VERSION" "pkg/vlc-macos-$VERSION.zip"
           scripts/publish.sh vlc-windows-x64 "$VERSION" "pkg/vlc-windows-x64-$VERSION.zip"
@@ -130,10 +139,11 @@ jobs:
               echo
               echo "### $os"
               echo
-              echo "Removed: $(grep -c '^REMOVED' "$report")"
+              removed=$(grep -E '^REMOVED .*\.(dll|dylib)' "$report" | sed 's/^REMOVED //')
+              echo "Removed plug-ins: $(printf '%s\n' "$removed" | grep -c .)"
               echo
               echo '```'
-              grep '^REMOVED' "$report" | sed 's/^REMOVED //'
+              printf '%s\n' "$removed"
               echo '```'
               if grep -q '^UNCLASSIFIED' "$report"; then
                 echo
@@ -143,9 +153,13 @@ jobs:
               fi
             done
           } > notes.md
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" --clobber vlc-*-$VERSION.zip SHA256SUMS
+          assets="vlc-macos-$VERSION.zip vlc-windows-x64-$VERSION.zip SHA256SUMS"
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --title "VLC $VERSION for Phon" --notes-file notes.md $assets
           else
-            gh release create "$GITHUB_REF_NAME" --title "VLC $VERSION for Phon" --notes-file notes.md \
-              vlc-*-$VERSION.zip SHA256SUMS
+            # Re-run: add what is missing, never replace an existing asset.
+            existing=$(gh release view "$GITHUB_REF_NAME" --json assets -q '.assets[].name')
+            for a in $assets; do
+              grep -qx "$a" <<< "$existing" || gh release upload "$GITHUB_REF_NAME" "$a"
+            done
           fi

@@ -32,9 +32,11 @@ the Release notes; add it to one of the lists.
 ## Updating VLC
 
 1. Put the new version in `VLC_VERSION`.
-2. Re-seed the lists and licence files on a Mac:
-   `scripts/seed-lists.sh <version> build/seed`. Compare `build/seed/*` with
-   `lists/` and place anything in `build/seed/macos-unmatched.txt` by hand.
+2. Regenerate the lists and licence files on a Mac:
+   `scripts/seed-lists.sh <version> build/seed`. If it reports unmatched Mac
+   plug-ins, add them to `lists/macos-only.tsv` and re-run. Review the
+   differences with `lists/`, then copy
+   `build/seed/{windows,macos}-{keep,remove}.txt` into `lists/`.
 3. Open a pull request and check the build and smoke tests pass.
 4. After merging, tag `main` with `v<version>` and push the tag.
 5. In `phon-package/pom.xml`, set `org.videolan.vlc-macos.version` and

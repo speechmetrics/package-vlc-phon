@@ -1,0 +1,25 @@
+# macOS-only plug-ins (no Windows counterpart), placed by hand.
+# Columns: VLC module category, plug-in file, keep|remove.
+# Read by scripts/seed-lists.sh.
+access	libavaudiocapture_plugin.dylib	keep
+access	libavcapture_plugin.dylib	keep
+audio_output	libauhal_plugin.dylib	keep
+codec	libaudiotoolboxmidi_plugin.dylib	keep
+codec	libtelx_plugin.dylib	keep
+codec	libvideotoolbox_plugin.dylib	keep
+control	libmotion_plugin.dylib	remove
+gui	libmacosx_plugin.dylib	remove
+gui	libncurses_plugin.dylib	remove
+gui	libosx_notifications_plugin.dylib	remove
+keystore	libkeychain_plugin.dylib	remove
+logger	libsyslog_plugin.dylib	keep
+misc	libsecuretransport_plugin.dylib	keep
+services_discovery	libbonjour_plugin.dylib	remove
+spu	libdynamicoverlay_plugin.dylib	keep
+stream_filter	libdecomp_plugin.dylib	keep
+text_renderer	libnsspeechsynthesizer_plugin.dylib	keep
+video_chroma	libcvpx_plugin.dylib	keep
+video_filter	libci_filters_plugin.dylib	keep
+video_output	libcaopengllayer_plugin.dylib	keep
+video_output	libglconv_cvpx_plugin.dylib	keep
+video_output	libvout_macosx_plugin.dylib	keep

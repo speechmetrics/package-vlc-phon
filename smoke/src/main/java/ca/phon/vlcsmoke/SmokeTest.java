@@ -55,6 +55,17 @@ public final class SmokeTest {
         System.out.println("vlcj   " + Info.getInstance().vlcjVersion());
         System.out.println("libvlc " + factory.application().version());
 
+        // JNA falls back to other search paths; make sure the package's own
+        // libvlc is the one under test.
+        File loaded = NativeLibrary.getInstance(RuntimeUtil.getLibVlcLibraryName())
+                .getFile()
+                .getCanonicalFile();
+        System.out.println("loaded " + loaded);
+        if (!loaded.toPath().startsWith(libDir.getCanonicalFile().toPath())) {
+            System.err.println("libvlc was loaded from outside " + libDir);
+            System.exit(1);
+        }
+
         List<String> errors = Collections.synchronizedList(new ArrayList<>());
         NativeLog log = factory.application().newLog();
         log.setLevel(LogLevel.ERROR);

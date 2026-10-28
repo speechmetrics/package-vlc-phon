@@ -34,8 +34,9 @@ mkdir -p "$tmp/lists"
 echo libkeep_plugin.dylib > "$tmp/lists/macos-keep.txt"
 echo libremove_plugin.dylib > "$tmp/lists/macos-remove.txt"
 
-out=$(VLC_MAC_APP="$tmp/VLC.app" LISTS_DIR="$tmp/lists" bash "$PACKAGE" 3.0.24 3.0.24 "$tmp/out")
+out=$(VLC_MAC_APP="$tmp/VLC.app" LISTS_DIR="$tmp/lists" bash "$PACKAGE" 3.0.24 3.0.24 "$tmp/out" 2> "$tmp/stderr")
 assert_eq 0 $? "package exit status"
+assert_contains "$(cat "$tmp/stderr")" "REMOVED libremove_plugin.dylib" "trim report shown in the log"
 
 zip="$tmp/out/vlc-macos-3.0.24.zip"
 assert_file "$zip"
@@ -52,5 +53,16 @@ assert_contains "$report" "REMOVED libremove_plugin.dylib" "trim report"
 assert_contains "$report" "REMOVED libintel_plugin.dylib (not universal)" "non-universal removal reported"
 
 assert_contains "$(unzip -p "$zip" $p/README.txt)" "https://code.videolan.org/videolan/vlc/-/tree/3.0.24" "README links source"
+
+# a failed build (non-universal core library) leaves no zip or report,
+# and the reason is shown in the log
+clang -dynamiclib -arch arm64 -install_name @rpath/libvlccore.dylib -o "$m/lib/libvlccore.9.dylib" "$src/core.c"
+mkdir -p "$tmp/out-fail"
+touch "$tmp/out-fail/vlc-macos-3.0.24.zip" "$tmp/out-fail/vlc-macos-3.0.24.trim.txt"
+err=$(VLC_MAC_APP="$tmp/VLC.app" LISTS_DIR="$tmp/lists" bash "$PACKAGE" 3.0.24 3.0.24 "$tmp/out-fail" 2>&1)
+assert_fails test -z "$err"
+assert_contains "$err" "NOT UNIVERSAL" "failure reason shown in the log"
+assert_no_file "$tmp/out-fail/vlc-macos-3.0.24.zip"
+assert_no_file "$tmp/out-fail/vlc-macos-3.0.24.trim.txt"
 
 finish

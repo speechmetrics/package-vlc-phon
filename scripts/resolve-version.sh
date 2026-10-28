@@ -18,7 +18,7 @@ if [ -z "$tag" ]; then
     maven_version="$file_version"
     vlc_version="$file_version"
 else
-    [[ "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9]+)?$ ]] || die "tag '$tag' is not v<x.y.z> or v<x.y.z>-<n>"
+    [[ "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[1-9][0-9]*)?$ ]] || die "tag '$tag' is not v<x.y.z> or v<x.y.z>-<n>"
     vlc_version="${BASH_REMATCH[1]}"
     maven_version="${tag#v}"
     [ "$vlc_version" = "$file_version" ] || die "tag '$tag' is for VLC $vlc_version but VLC_VERSION is $file_version"

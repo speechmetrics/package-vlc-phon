@@ -23,5 +23,7 @@ VLC_VERSION=3.0.24" "$out" "no tag uses VLC_VERSION file"
 assert_fails bash "$RESOLVE" v3.0.25
 assert_fails bash "$RESOLVE" 3.0.24
 assert_fails bash "$RESOLVE" vfoo
+assert_fails bash "$RESOLVE" v3.0.24-0
+assert_fails bash "$RESOLVE" v3.0.24-02
 
 finish

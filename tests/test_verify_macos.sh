@@ -27,6 +27,7 @@ clang -dynamiclib $universal -o "$m/plugins/libfoo_plugin.dylib" "$src/plugin.c"
 out=$(bash "$VERIFY" "$m")
 assert_eq 0 $? "verify exit status"
 assert_contains "$out" "FIXED" "reports fixes"
+assert_not_contains "$out" "FIXED $m/lib/libvlccore.dylib @rpath/libvlccore.dylib" "own install name not treated as a dependency"
 deps=$(otool -L "$m/plugins/libfoo_plugin.dylib")
 assert_contains "$deps" "@rpath/libvlccore.dylib" "plug-in dependency rewritten"
 assert_not_contains "$deps" "$m/lib/libvlccore.dylib" "absolute path gone"
@@ -59,6 +60,17 @@ int main(int argc, char **argv) {
 C
 clang -o "$tmp/load" "$tmp/load.c"
 assert_eq "loads" "$("$tmp/load" "$r/lib/libvlc.dylib" 2>&1)" "libvlc loads by full path without an rpath"
+
+# a reference to a non-system library by absolute path fails verification
+a="$tmp/abs/MacOS"
+mkdir -p "$a/lib" "$a/plugins" "$tmp/elsewhere"
+cp "$m/lib/libvlccore.dylib" "$a/lib/"
+echo 'int helper(void) { return 2; }' > "$src/helper.c"
+clang -dynamiclib $universal -install_name "$tmp/elsewhere/libhelper.dylib" -o "$tmp/elsewhere/libhelper.dylib" "$src/helper.c"
+clang -dynamiclib $universal -o "$a/plugins/libabs_plugin.dylib" "$src/plugin.c" "$a/lib/libvlccore.dylib" "$tmp/elsewhere/libhelper.dylib"
+out=$(bash "$VERIFY" "$a")
+assert_eq 1 $? "absolute reference exit status"
+assert_contains "$out" "ABSOLUTE PATH $a/plugins/libabs_plugin.dylib $tmp/elsewhere/libhelper.dylib" "absolute reference reported"
 
 # an arm64-only plug-in fails verification
 b="$tmp/bad/MacOS"

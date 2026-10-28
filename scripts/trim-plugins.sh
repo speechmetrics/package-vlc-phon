@@ -27,17 +27,33 @@ esac
 keep=$(read_list "$keep_list")
 remove=$(read_list "$remove_list")
 
+# in_list <name> <newline-separated list>
 in_list() {
-    printf '%s\n' "$2" | grep -Fxq -- "$1"
+    local entry
+    while IFS= read -r entry; do
+        [ "$entry" = "$1" ] && return 0
+    done <<< "$2"
+    return 1
 }
 
-both=$(printf '%s\n' "$keep" | grep -Fx -f <(printf '%s\n' "$remove") || true)
-[ -z "$both" ] || die "on both keep and remove lists: $(echo $both)"
-
-present=$(find "$plugins_dir" -mindepth 1 -maxdepth 1 -type "$find_type" -exec basename {} \; | sort)
-
-for name in $present; do
+while IFS= read -r name; do
+    [ -n "$name" ] || continue
     if in_list "$name" "$remove"; then
+        die "on both keep and remove lists: $name"
+    fi
+done <<< "$keep"
+
+present=$(find "$plugins_dir" -mindepth 1 -maxdepth 1 -type "$find_type" -exec basename {} \; | LC_ALL=C sort)
+
+while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    if in_list "$name" "$remove"; then
+        if [ "$mode" = category ]; then
+            # Name every plug-in removed with its category.
+            while IFS= read -r plugin; do
+                [ -n "$plugin" ] && echo "REMOVED $name/$plugin"
+            done < <(find "$plugins_dir/$name" -type f -exec basename {} \; | LC_ALL=C sort)
+        fi
         rm -rf "${plugins_dir:?}/$name"
         echo "REMOVED $name"
     elif in_list "$name" "$keep"; then
@@ -45,8 +61,10 @@ for name in $present; do
     else
         echo "UNCLASSIFIED $name"
     fi
-done
+done <<< "$present"
 
-for name in $keep $remove; do
+while IFS= read -r name; do
+    [ -n "$name" ] || continue
     in_list "$name" "$present" || echo "WARNING missing $name"
-done
+done <<< "$keep
+$remove"
