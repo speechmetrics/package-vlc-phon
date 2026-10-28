@@ -7,3 +7,7 @@
 # untrimmed VLC 3.0.24 VLC.app; decoded frames still reach the callback.
 ^blend: no matching alpha blending routine \(chroma: YUVA -> CVPN\)$
 ^main: blending YUVA to CVPN failed$
+
+# Windows: the video output asks the window provider to keep the window on
+# top; vlcj's callback surface has no window, so the request is refused.
+^main: Failed to set on top$

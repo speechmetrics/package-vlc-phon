@@ -4,9 +4,9 @@
 # Usage: verify-macos.sh <MacOS-dir>     (the folder holding lib/ and plugins/)
 #
 # Every Mach-O file under lib/ and plugins/ must contain arm64 and x86_64.
-# References to libvlc or libvlccore must be @rpath/<name>.dylib or
-# @loader_path/<name>.dylib with the unversioned name the package ships;
-# others are rewritten to @rpath/<name>.dylib and the file is re-signed
+# Between lib/ files, references to libvlc or libvlccore must be
+# @loader_path/<name>.dylib; from plug-ins, @rpath/<name>.dylib (unversioned);
+# others are rewritten accordingly and the file is re-signed
 # ad hoc so it stays loadable until install4j signs it. Prints a FIXED
 # line per change and exits non-zero if any file is not universal.
 set -euo pipefail
@@ -53,11 +53,24 @@ while IFS= read -r f; do
         [ "$dep" = "$id" ] && continue
         name=$(vlc_name "$dep")
         [ -n "$name" ] || continue
-        case "$dep" in
-            "@rpath/$name"|"@loader_path/$name") continue ;;
+        case "$f" in
+            "$dir/lib/"*)
+                # The core libraries carry no rpath, and JNA loads libvlc by
+                # full path: libvlc must find libvlccore beside itself.
+                want="@loader_path/$name"
+                [ "$dep" = "$want" ] && continue
+                ;;
+            *)
+                # Plug-ins are loaded by libvlccore, which is then already
+                # loaded under its @rpath install name.
+                want="@rpath/$name"
+                case "$dep" in
+                    "@rpath/$name"|"@loader_path/../lib/$name") continue ;;
+                esac
+                ;;
         esac
-        install_name_tool -change "$dep" "@rpath/$name" "$f" 2>/dev/null
-        echo "FIXED $f $dep -> @rpath/$name"
+        install_name_tool -change "$dep" "$want" "$f" 2>/dev/null
+        echo "FIXED $f $dep -> $want"
         changed=1
     done
 

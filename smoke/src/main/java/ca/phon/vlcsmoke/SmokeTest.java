@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
+import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.log.LogLevel;
 import uk.co.caprica.vlcj.log.NativeLog;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
@@ -47,8 +48,10 @@ public final class SmokeTest {
 
         NativeLibrary.addSearchPath(RuntimeUtil.getLibVlcLibraryName(), libDir.getPath());
 
-        MediaPlayerFactory factory =
-                new MediaPlayerFactory("--no-metadata-network-access", "--no-plugins-cache", "--aout=adummy");
+        // No native discovery: it would fall back to an installed VLC, and the
+        // package must load on its own.
+        MediaPlayerFactory factory = new MediaPlayerFactory(
+                (NativeDiscovery) null, "--no-metadata-network-access", "--no-plugins-cache", "--aout=adummy");
         System.out.println("vlcj   " + Info.getInstance().vlcjVersion());
         System.out.println("libvlc " + factory.application().version());
 
