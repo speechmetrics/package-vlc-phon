@@ -1,0 +1,151 @@
+name: Build VLC packages
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      maven: ${{ steps.v.outputs.MAVEN_VERSION }}
+      vlc: ${{ steps.v.outputs.VLC_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run script tests
+        run: tests/run.sh
+      - name: Resolve versions
+        id: v
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            scripts/resolve-version.sh "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          else
+            scripts/resolve-version.sh >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
+  package-macos:
+    needs: version
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run script tests (macOS)
+        run: tests/run.sh
+      - name: Build package
+        run: scripts/package-macos.sh "${{ needs.version.outputs.maven }}" "${{ needs.version.outputs.vlc }}" out
+      - name: Show trim report
+        run: cat out/*.trim.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vlc-macos
+          path: out/
+
+  package-windows:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build package
+        run: scripts/package-windows.sh "${{ needs.version.outputs.maven }}" "${{ needs.version.outputs.vlc }}" out
+      - name: Show trim report
+        run: cat out/*.trim.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vlc-windows-x64
+          path: out/
+
+  smoke:
+    needs: [version, package-macos, package-windows]
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { runner: macos-15, artifact: vlc-macos, lib: VLC.app/Contents/MacOS/lib, plugins: VLC.app/Contents/MacOS/plugins }
+          - { runner: macos-15-intel, artifact: vlc-macos, lib: VLC.app/Contents/MacOS/lib, plugins: VLC.app/Contents/MacOS/plugins }
+          - { runner: windows-latest, artifact: vlc-windows-x64, lib: VLC, plugins: VLC/plugins }
+        vlcj: ['4.11.0', '4.12.1']
+    name: smoke (${{ matrix.target.runner }}, vlcj ${{ matrix.vlcj }})
+    runs-on: ${{ matrix.target.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.target.artifact }}
+          path: pkg
+      - name: Unpack package
+        run: |
+          mkdir -p vlc
+          unzip -q pkg/${{ matrix.target.artifact }}-${{ needs.version.outputs.maven }}.zip -d vlc
+      - name: Build smoke test
+        run: mvn -B -q -f smoke/pom.xml -Dvlcj.version=${{ matrix.vlcj }} clean package
+      - name: Play test clips
+        env:
+          VLC_PLUGIN_PATH: ${{ github.workspace }}/vlc/${{ matrix.target.plugins }}
+        run: java -jar smoke/target/vlc-smoke.jar "vlc/${{ matrix.target.lib }}" smoke/clips smoke/allowed-errors.txt
+
+  publish:
+    if: github.ref_type == 'tag'
+    needs: [version, smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ needs.version.outputs.maven }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: pkg
+          merge-multiple: true
+      - name: Publish to GitHub Packages
+        run: |
+          scripts/publish.sh vlc-macos "$VERSION" "pkg/vlc-macos-$VERSION.zip"
+          scripts/publish.sh vlc-windows-x64 "$VERSION" "pkg/vlc-windows-x64-$VERSION.zip"
+      - name: Create GitHub Release
+        run: |
+          cd pkg
+          shasum -a 256 vlc-macos-$VERSION.zip vlc-windows-x64-$VERSION.zip > SHA256SUMS
+          {
+            echo "VLC ${{ needs.version.outputs.vlc }} runtime packages for Phon."
+            echo
+            echo "Maven: \`org.videolan:vlc-macos:$VERSION\`, \`org.videolan:vlc-windows-x64:$VERSION\` (zip)."
+            for os in macos windows-x64; do
+              report=vlc-$os-$VERSION.trim.txt
+              echo
+              echo "### $os"
+              echo
+              echo "Removed: $(grep -c '^REMOVED' "$report")"
+              echo
+              echo '```'
+              grep '^REMOVED' "$report" | sed 's/^REMOVED //'
+              echo '```'
+              if grep -q '^UNCLASSIFIED' "$report"; then
+                echo
+                echo "**Unclassified (kept, add to a list):**"
+                echo
+                grep '^UNCLASSIFIED' "$report" | sed 's/^UNCLASSIFIED /- /'
+              fi
+            done
+          } > notes.md
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" --clobber vlc-*-$VERSION.zip SHA256SUMS
+          else
+            gh release create "$GITHUB_REF_NAME" --title "VLC $VERSION for Phon" --notes-file notes.md \
+              vlc-*-$VERSION.zip SHA256SUMS
+          fi
