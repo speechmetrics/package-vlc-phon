@@ -1,0 +1,21 @@
+# Windows plug-in categories (folders under plugins/) to keep.
+# Phon plays local files through vlcj's callback video surface.
+
+access
+audio_filter
+audio_mixer
+audio_output
+codec
+d3d11
+d3d9
+demux
+logger
+meta_engine
+misc
+packetizer
+spu
+stream_filter
+text_renderer
+video_chroma
+video_filter
+video_output
