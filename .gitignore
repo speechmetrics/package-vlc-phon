@@ -1,3 +1,4 @@
 .superpowers/
 build/
 smoke/target/
+smoke/dependency-reduced-pom.xml

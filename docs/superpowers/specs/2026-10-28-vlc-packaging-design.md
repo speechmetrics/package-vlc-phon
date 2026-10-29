@@ -185,10 +185,12 @@ except publishing.
    AAC), WAV (PCM), MP3, M4A (AAC). These are the formats Phon users load most.
 4. **Publish job** (tags only, after all smoke tests pass):
    - Publish to the `speechmetrics` namespace
-     (`https://maven.pkg.github.com/speechmetrics/package-vlc-phon`) with the
+     (`https://maven.pkg.github.com/speechmetrics/phon-package`) with the
      workflow's built-in `GITHUB_TOKEN` (`packages: write`). The packages
-     already exist there under another repo; the owner grants this repo
-     write access in each package's settings before the first tag.
+     already exist, linked to `phon-package`, and GitHub Packages rejects
+     (HTTP 422) new versions sent through any other repository's address;
+     the owner grants this repo write access in each package's settings
+     before the first tag.
    - Deploy both zips to GitHub Packages as `org.videolan:vlc-macos:<version>`
      and `org.videolan:vlc-windows-x64:<version>`, packaging `zip`, with a
      minimal POM like the existing one.

@@ -13,7 +13,9 @@ source "$(dirname "$0")/lib.sh"
 artifact="$1"
 version="$2"
 zip="$3"
-repo_url="https://maven.pkg.github.com/speechmetrics/package-vlc-phon"
+# The packages were first published from phon-package and stay linked to it;
+# GitHub Packages rejects (422) new versions sent through any other repo.
+repo_url="https://maven.pkg.github.com/speechmetrics/phon-package"
 base_url="$repo_url/org/videolan/$artifact/$version/$artifact-$version"
 pom_url="$base_url.pom"
 

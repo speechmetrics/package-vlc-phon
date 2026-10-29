@@ -47,8 +47,11 @@ To republish the same VLC with changed lists, tag `v<version>-<n>`
 
 ## One-time setup
 
-GitHub Packages links each package to the repository that first published it.
-Before the first release, open each of `org.videolan.vlc-macos` and
+GitHub Packages links each package to the repository that first published it,
+and accepts new versions only through that repository's address. Both packages
+are linked to `speechmetrics/phon-package`, so `scripts/publish.sh` uploads to
+`https://maven.pkg.github.com/speechmetrics/phon-package`; the packages stay
+private and appear on phon-package's Packages page. Before the first release, open each of `org.videolan.vlc-macos` and
 `org.videolan.vlc-windows-x64` in the speechmetrics organisation's packages,
 and under **Manage Actions access** give this repository the **Write** role.
 
