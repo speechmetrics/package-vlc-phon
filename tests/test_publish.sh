@@ -34,7 +34,9 @@ exit 0
 STUB
 chmod +x "$tmp/bin/"*
 export PATH="$tmp/bin:$PATH" GITHUB_ACTOR=bot GITHUB_TOKEN=secret STUB_LOG="$tmp/log"
-repo=https://maven.pkg.github.com/speechmetrics/package-vlc-phon
+# The packages are linked to phon-package; GitHub rejects (422) uploads
+# through any other repository address.
+repo=https://maven.pkg.github.com/speechmetrics/phon-package
 
 # version already published (the registry redirects to its file store):
 # skip the deploy and replace the local zip with the published one
