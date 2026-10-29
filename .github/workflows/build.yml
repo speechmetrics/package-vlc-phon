@@ -133,7 +133,7 @@ jobs:
           {
             echo "VLC ${{ needs.version.outputs.vlc }} runtime packages for Phon."
             echo
-            echo "Maven: \`org.videolan:vlc-macos:$VERSION\`, \`org.videolan:vlc-windows-x64:$VERSION\` (zip)."
+            echo "Maven: \`ca.phon.vlc:vlc-macos:$VERSION\`, \`ca.phon.vlc:vlc-windows-x64:$VERSION\` (zip)."
             for os in macos windows-x64; do
               report=vlc-$os-$VERSION.trim.txt
               echo
