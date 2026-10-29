@@ -1,0 +1,15 @@
+# Windows plug-in categories (folders under plugins/) Phon cannot use:
+# interfaces, remote control, scripting, network discovery, streaming
+# and recording output, visualizations and password storage.
+
+access_output
+control
+gui
+keystore
+lua
+mux
+services_discovery
+stream_extractor
+stream_out
+video_splitter
+visualization
