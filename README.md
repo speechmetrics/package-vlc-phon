@@ -2,8 +2,8 @@
 
 Builds the trimmed VLC runtime packages that the Phon installers bundle:
 
-- `org.videolan:vlc-macos` — universal `VLC.app/Contents/MacOS/{lib,plugins}`
-- `org.videolan:vlc-windows-x64` — `VLC/{libvlc.dll,libvlccore.dll,plugins}`
+- `ca.phon.vlc:vlc-macos` — universal `VLC.app/Contents/MacOS/{lib,plugins}`
+- `ca.phon.vlc:vlc-windows-x64` — `VLC/{libvlc.dll,libvlccore.dll,plugins}`
 
 See `docs/superpowers/specs/2026-10-28-vlc-packaging-design.md` for the design.
 
@@ -39,21 +39,19 @@ the Release notes; add it to one of the lists.
    `build/seed/{windows,macos}-{keep,remove}.txt` into `lists/`.
 3. Open a pull request and check the build and smoke tests pass.
 4. After merging, tag `main` with `v<version>` and push the tag.
-5. In `phon-package/pom.xml`, set `org.videolan.vlc-macos.version` and
-   `org.videolan.vlc-windows.version` to the new version.
+5. In `phon-package/pom.xml`, set both VLC versions to the new version.
 
 To republish the same VLC with changed lists, tag `v<version>-<n>`
 (for example `v3.0.24-2`). Published versions cannot be overwritten.
 
-## One-time setup
+## Package names and access
 
-GitHub Packages links each package to the repository that first published it,
-and accepts new versions only through that repository's address. Both packages
-are linked to `speechmetrics/phon-package`, so `scripts/publish.sh` uploads to
-`https://maven.pkg.github.com/speechmetrics/phon-package`; the packages stay
-private and appear on phon-package's Packages page. Before the first release, open each of `org.videolan.vlc-macos` and
-`org.videolan.vlc-windows-x64` in the speechmetrics organisation's packages,
-and under **Manage Actions access** give this repository the **Write** role.
+The packages are `ca.phon.vlc:vlc-macos` and `ca.phon.vlc:vlc-windows-x64`,
+published from this repository with the workflow's own token. A Maven package
+on GitHub takes its access from the repository it is linked to, so no extra
+grant or secret is needed. The hand-built `org.videolan` packages (VLC 3.0.17
+and 3.0.12) stay linked to `phon-package` for older builds; this repository
+cannot publish to them.
 
 ## Licence
 

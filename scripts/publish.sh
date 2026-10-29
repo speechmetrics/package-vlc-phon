@@ -13,10 +13,12 @@ source "$(dirname "$0")/lib.sh"
 artifact="$1"
 version="$2"
 zip="$3"
-# The packages were first published from phon-package and stay linked to it;
-# GitHub Packages rejects (422) new versions sent through any other repo.
-repo_url="https://maven.pkg.github.com/speechmetrics/phon-package"
-base_url="$repo_url/org/videolan/$artifact/$version/$artifact-$version"
+# A Maven package takes its access from the repository it is linked to, so
+# the packages must be linked to this repository for the workflow token to
+# publish them. The older org.videolan packages are linked to phon-package.
+group_id="ca.phon.vlc"
+repo_url="https://maven.pkg.github.com/speechmetrics/package-vlc-phon"
+base_url="$repo_url/${group_id//.//}/$artifact/$version/$artifact-$version"
 pom_url="$base_url.pom"
 
 : "${GITHUB_ACTOR:?}" "${GITHUB_TOKEN:?}"
@@ -51,7 +53,7 @@ cat > "$settings" <<XML
 XML
 
 mvn -B -q -s "$settings" deploy:deploy-file \
-    -DgroupId=org.videolan \
+    -DgroupId=$group_id \
     -DartifactId="$artifact" \
     -Dversion="$version" \
     -Dpackaging=zip \

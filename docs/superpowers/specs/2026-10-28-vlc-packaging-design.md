@@ -32,8 +32,8 @@ when a tag is pushed.
   macOS warning.
 - Remove plug-ins Phon cannot use.
 - Prove each package works with Phon's vlcj before publishing it.
-- Publish under the same Maven coordinates and zip layout as today, so
-  `phon-package` only changes version numbers.
+- Keep the zip layout of today's packages, so
+  `phon-package` only changes the Maven coordinates (see Publish job).
 - Make a VLC update a one-line change plus a tag.
 
 ## Non-goals
@@ -185,14 +185,17 @@ except publishing.
    AAC), WAV (PCM), MP3, M4A (AAC). These are the formats Phon users load most.
 4. **Publish job** (tags only, after all smoke tests pass):
    - Publish to the `speechmetrics` namespace
-     (`https://maven.pkg.github.com/speechmetrics/phon-package`) with the
-     workflow's built-in `GITHUB_TOKEN` (`packages: write`). The packages
-     already exist, linked to `phon-package`, and GitHub Packages rejects
-     (HTTP 422) new versions sent through any other repository's address;
-     the owner grants this repo write access in each package's settings
-     before the first tag.
-   - Deploy both zips to GitHub Packages as `org.videolan:vlc-macos:<version>`
-     and `org.videolan:vlc-windows-x64:<version>`, packaging `zip`, with a
+     (`https://maven.pkg.github.com/speechmetrics/package-vlc-phon`) with the
+     workflow's built-in `GITHUB_TOKEN` (`packages: write`).
+   - Revised after the first tag: the `org.videolan` packages are linked to
+     `phon-package`. GitHub rejects (HTTP 422) new versions sent through
+     another repository's address, and a Maven package takes its access
+     from its linked repository, so this repo's token cannot write to them.
+     The packages are therefore published under a new group, `ca.phon.vlc`,
+     linked to this repo, and `phon-package` changes the group as well as
+     the versions.
+   - Deploy both zips to GitHub Packages as `ca.phon.vlc:vlc-macos:<version>`
+     and `ca.phon.vlc:vlc-windows-x64:<version>`, packaging `zip`, with a
      minimal POM like the existing one.
    - Create a GitHub Release for the tag with both zips and their SHA-256
      sums, listing the removed plug-ins and any unclassified ones.
@@ -200,8 +203,8 @@ except publishing.
 ## Follow-up changes in other repos (not part of this repo)
 
 - `phon-4.x`: bump vlcj 4.11.0 → 4.12.1 (`gradle/libs.versions.toml`).
-- `phon-package`: bump `org.videolan.vlc-macos.version` and
-  `org.videolan.vlc-windows.version` in `pom.xml` to the new version; build a
+- `phon-package`: change both VLC artifacts' group to `ca.phon.vlc` and set
+  their versions in `pom.xml` to the new version; build a
   beta installer and confirm the macOS warning is gone and media plays.
 
 ## Left to the builder

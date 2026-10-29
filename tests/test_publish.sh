@@ -34,9 +34,7 @@ exit 0
 STUB
 chmod +x "$tmp/bin/"*
 export PATH="$tmp/bin:$PATH" GITHUB_ACTOR=bot GITHUB_TOKEN=secret STUB_LOG="$tmp/log"
-# The packages are linked to phon-package; GitHub rejects (422) uploads
-# through any other repository address.
-repo=https://maven.pkg.github.com/speechmetrics/phon-package
+repo=https://maven.pkg.github.com/speechmetrics/package-vlc-phon
 
 # version already published (the registry redirects to its file store):
 # skip the deploy and replace the local zip with the published one
@@ -47,8 +45,8 @@ for code in 200 302; do
     assert_eq 0 $? "skip exit status ($code)"
     assert_eq "SKIP vlc-macos 3.0.24 already published" "$out" "skip message ($code)"
     assert_no_file "$tmp/log.mvn"
-    assert_contains "$(cat "$tmp/log.curl")" "$repo/org/videolan/vlc-macos/3.0.24/vlc-macos-3.0.24.pom" "checks the POM URL"
-    assert_contains "$(cat "$tmp/log.curl")" "$repo/org/videolan/vlc-macos/3.0.24/vlc-macos-3.0.24.zip" "downloads the published zip"
+    assert_contains "$(cat "$tmp/log.curl")" "$repo/ca/phon/vlc/vlc-macos/3.0.24/vlc-macos-3.0.24.pom" "checks the POM URL"
+    assert_contains "$(cat "$tmp/log.curl")" "$repo/ca/phon/vlc/vlc-macos/3.0.24/vlc-macos-3.0.24.zip" "downloads the published zip"
     assert_eq "published zip" "$(cat "$tmp/pkg.zip")" "local zip is the published one ($code)"
 done
 
@@ -59,7 +57,7 @@ STUB_HTTP_CODE=404 bash "$PUBLISH" vlc-windows-x64 3.0.24-2 "$tmp/pkg.zip" >/dev
 assert_eq 0 $? "deploy exit status"
 args=$(cat "$tmp/log.mvn")
 assert_contains "$args" "deploy:deploy-file" "runs deploy-file"
-assert_contains "$args" "-DgroupId=org.videolan" "groupId"
+assert_contains "$args" "-DgroupId=ca.phon.vlc" "groupId"
 assert_contains "$args" "-DartifactId=vlc-windows-x64" "artifactId"
 assert_contains "$args" "-Dversion=3.0.24-2" "version"
 assert_contains "$args" "-Dpackaging=zip" "packaging"
